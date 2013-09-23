@@ -1,0 +1,8 @@
+- Raypump shows "Blender connected" after the socket between blender and RayPump has been closed.
+- Fix Unicode issues
+DONE - Show an error message when UTF-8 characters can't be read
+DONE - Don't pack files into main blend
+
+IMPORTANT:
+To pack external files in another blend, the script saves the current blend before opening another one.
+Might be a problem if the user doesn't want to overwrite his blend.

@@ -2,7 +2,7 @@ bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com',
     'version': '(0, 3, 2)',
-    'blender': (2, 6, 8),
+    'blender': (2, 6, 6),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Easy to use free online GPU-farm for Cycles',
     'category': 'Render'
@@ -49,7 +49,16 @@ class ConnectClientOperator(bpy.types.Operator):
             SOCKET = None
             return {'CANCELLED'}
         
-        RAYPUMP_PATH = SOCKET.makefile().readline().rstrip()
+        try:
+            RAYPUMP_PATH = SOCKET.makefile().readline().rstrip()
+            if ('?' in RAYPUMP_PATH):
+                raise error('Path has "?"')
+        except Exception:
+            self.report({'ERROR'}, "Failed to receive RayPump's path from RayPump; please use only ASCII paths")
+            SOCKET.close()
+            SOCKET = None
+            return {'CANCELLED'}
+        
         self.report({'INFO'}, "Connected with RayPump")
         the_version = json.dumps({
             'VERSION':RAYPUMP_VERSION
@@ -69,25 +78,26 @@ class MessageRenderOperator(bpy.types.Operator):
             self.report({'ERROR'}, "Not connected to RayPump client")
             return {'CANCELLED'}
         else:
+            bpy.ops.wm.save_mainfile()	#save actual state to main .blend
+            
+            original_fpath = bpy.data.filepath
+            destination_fpath = RAYPUMP_PATH + "/" + os.path.basename(original_fpath)
+            
+            # These changes will be saved to the RayPump's .blend
+            bpy.ops.object.make_local(type='ALL')
             try:
                 bpy.ops.file.pack_all()
+                bpy.ops.wm.save_as_mainfile(filepath=destination_fpath)	#save .blend for raypump
             except RuntimeError as msg:
                 self.report({'ERROR'}, "Packing has failed (missing textures?)")
                 print(msg)
                 return {'CANCELLED'}
-            
-            original_fpath = bpy.context.blend_data.filepath
-            basename = os.path.basename(original_fpath)
-            destination_fpath = RAYPUMP_PATH + "/" + basename
-
-            #bpy.ops.wm.save_mainfile()
-
-            bpy.ops.object.make_local(type='ALL') #this should be optional
-            bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True, compress=False) #we compress the files ourself, at the RayPump side
+            finally:
+                bpy.ops.wm.open_mainfile(filepath=original_fpath)	#reopen main blend
             
             try:
                 the_dump = json.dumps({
-                    'SCHEDULE':bpy.context.blend_data.filepath,
+                    'SCHEDULE':destination_fpath,
                     'FRAME_CURRENT':bpy.context.scene.frame_current,
                     'FRAME_START':bpy.context.scene.frame_start,
                     'FRAME_END':bpy.context.scene.frame_end,
@@ -99,7 +109,6 @@ class MessageRenderOperator(bpy.types.Operator):
             except socket.error as msg:
                 self.report({'ERROR'}, "Error connecting RayPump client")
                 SOCKET = None
-                # @todo restore scene
                 return {'CANCELLED'}
 
         SynchroSuccessful = SOCKET.makefile().readline().rstrip()
@@ -107,8 +116,6 @@ class MessageRenderOperator(bpy.types.Operator):
             self.report({'INFO'}, 'Job send')
         else:
             self.report({'ERROR'}, 'Failed to schedule. Check RayPump messages')
-        #bpy.ops.wm.open_mainfile(filepath=original_fpath)
-        # @badcode this is read-only: bpy.context.blend_data.filepath = original_fpatch
         return {'FINISHED'}
 
 class RemoveMissedTexturesOperator(bpy.types.Operator):

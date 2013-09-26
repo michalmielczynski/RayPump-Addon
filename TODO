@@ -23,3 +23,11 @@ One of ways to avoid those issues could be:
 That way user's scene stays intact. 
 
 Possible drawbacks: bigger scenes can cause memory issues (two Blender copies in RAM)
+
+
+---
+Issue: running the script alters the scene history
+
+Description:
+User can get confused with double entries in both File->Open Recent... and splash screen 'Recent' section. Those are side effect of RayPump's script saving
+the scene in BUFFER directory. Any idea to keep those entries hidden?

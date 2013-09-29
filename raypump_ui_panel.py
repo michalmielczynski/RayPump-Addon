@@ -69,8 +69,8 @@ class ConnectClientOperator(bpy.types.Operator):
 
 class MessageRenderOperator(bpy.types.Operator):
     bl_idname = "object.raypump_message_operator"
-    bl_label = "Send To RayPump"
-    bl_description = "Sends and schedules current scene to the RayPump Accelerator" 
+    bl_label = "Save & Send To RayPump"
+    bl_description = "Saves, sends and schedules current scene to the RayPump Accelerator" 
 
     def execute(self, context):
         global SOCKET, RAYPUMP_PATH

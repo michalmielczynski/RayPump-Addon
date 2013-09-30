@@ -46,7 +46,7 @@ class ConnectClientOperator(bpy.types.Operator):
             SOCKET.connect((TCP_IP, TCP_PORT))
         except socket.error:
             try:
-                call("raypump&", shell=True)
+                call("raypump-launcher&", shell=True)
                 time.sleep(1)
                 SOCKET.connect((TCP_IP, TCP_PORT))
             except Exception as msg:

@@ -94,7 +94,7 @@ class MessageRenderOperator(bpy.types.Operator):
             bpy.ops.object.make_local(type='ALL')
             try:
                 bpy.ops.file.pack_all()
-                bpy.ops.wm.save_as_mainfile(filepath=destination_fpath)	#save .blend for raypump
+                bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)	#save .blend for raypump
             except RuntimeError as msg:
                 self.report({'ERROR'}, "Packing has failed (missing textures?)")
                 print(msg)

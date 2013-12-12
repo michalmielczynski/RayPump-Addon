@@ -1,10 +1,10 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com',
-    'version': '(0, 3, 2)',
+    'version': '(0, 3, 4)',
     'blender': (2, 6, 8),
     'location': 'Properties > Render > RayPump.com',
-    'description': 'Easy to use free online GPU-farm for Cycles',
+    'description': 'Eeasy to use free online GPU-farm for Cycles',
     'category': 'Render'
     }
 
@@ -21,7 +21,7 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
 SOCKET = None 
 RAYPUMP_PATH = None
-RAYPUMP_VERSION = 0.992 # what version we will connect to?
+RAYPUMP_VERSION = 0.993 # what version we will connect to?
         
 class ConnectClientOperator(bpy.types.Operator):
     bl_idname = "object.raypump_connect_operator"

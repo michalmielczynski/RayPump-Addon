@@ -4,7 +4,7 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com, tiago.shibata@gmail.com',
-    'version': '(0, 3, 4)',
+    'version': '(0, 3, 5)',
     'blender': (2, 6, 0),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Easy to use free online GPU-farm for Cycles',

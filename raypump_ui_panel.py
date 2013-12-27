@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com, tiago.shibata@gmail.com',
-    'version': '(0, 3, 4)',
+    'version': '(0, 4, 0)',
     'blender': (2, 6, 6),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Easy to use free online GPU-farm for Cycles',
@@ -21,7 +21,7 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
 SOCKET = None 
 RAYPUMP_PATH = None
-RAYPUMP_VERSION = 0.993 # what version we will connect to?
+RAYPUMP_VERSION = 0.994 # what version we will connect to?
         
 class ConnectClientOperator(bpy.types.Operator):
     bl_idname = "object.raypump_connect_operator"
@@ -30,8 +30,8 @@ class ConnectClientOperator(bpy.types.Operator):
 
     def execute(self, context):
         global SOCKET, TCP_IP, TCP_PORT, RAYPUMP_PATH
-        scene = context.scene
-
+        scene = context.scene       
+            
         if (SOCKET != None):
             SOCKET.close()
         try:
@@ -74,6 +74,8 @@ class MessageRenderOperator(bpy.types.Operator):
 
     def execute(self, context):
         global SOCKET, RAYPUMP_PATH
+        external_paths = []
+        
         if (SOCKET == None):
             self.report({'ERROR'}, "Not connected to RayPump client")
             return {'CANCELLED'}
@@ -83,8 +85,24 @@ class MessageRenderOperator(bpy.types.Operator):
             original_fpath = bpy.data.filepath
             destination_fpath = RAYPUMP_PATH + "/" + os.path.basename(original_fpath)
             
-            # These changes will be saved to the RayPump's .blend
+            ## @section: changes below will be saved to the RayPump's scene copy 
+            
+            #getting all the linked files
             bpy.ops.object.make_local(type='ALL')
+            
+            #getting all the fluid cache paths
+            bpy.ops.file.make_paths_absolute()
+            for object in bpy.data.objects:
+                for modifier in object.modifiers:
+                    if (modifier.name == "Fluidsim"):
+                        if (modifier.settings.type == "DOMAIN"):
+                            external_paths.append(os.path.abspath(modifier.settings.filepath))
+                            object.modifiers["Fluidsim"].settings.filepath = "//"
+            
+            ## OTHER EXTERNAL PATHS CAN BE ADDED HERE 
+            
+            context.scene.update
+                            
             try:
                 bpy.ops.file.pack_all()
                 bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)	#save .blend for raypump
@@ -93,15 +111,17 @@ class MessageRenderOperator(bpy.types.Operator):
                 print(msg)
                 return {'CANCELLED'}
             finally:
-                bpy.ops.wm.open_mainfile(filepath=original_fpath)	#reopen main blend
+                ## @endsection: reopen main blend
+                bpy.ops.wm.open_mainfile(filepath=original_fpath)
             
-            try:
+            try:    
                 the_dump = json.dumps({
                     'SCHEDULE':destination_fpath,
                     'FRAME_CURRENT':bpy.context.scene.frame_current,
                     'FRAME_START':bpy.context.scene.frame_start,
                     'FRAME_END':bpy.context.scene.frame_end,
-                    'JOB_TYPE':bpy.context.scene.raypump_jobtype
+                    'JOB_TYPE':bpy.context.scene.raypump_jobtype,
+                    'EXTERNAL_PATHS' :external_paths
                     })
                 SOCKET.sendall(bytes(the_dump, 'UTF-8'))
                 SYNCHRONIZING = True

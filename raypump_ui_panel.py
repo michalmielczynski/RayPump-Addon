@@ -152,7 +152,15 @@ class RemoveMissedTexturesOperator(bpy.types.Operator):
                     print("Image path: " + image.filepath + " does not exist")
                     image.filepath = ""
                     fixApplied = True
-            
+        
+        for font in bpy.data.fonts:
+            path = font.filepath
+            if path and path!='<builtin>':
+                if not os.path.exists(path):
+                    print("Font path: " + font.filepath + " does not exists")
+                    font.filepath = ""
+                    fixApplied = True
+                        
         if fixApplied:
             self.report({'INFO'}, 'Invalid entries removed')
         else:

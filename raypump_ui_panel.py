@@ -77,7 +77,7 @@ class MessageRenderOperator(bpy.types.Operator):
         external_paths = []
         
         if (SOCKET == None):
-            self.report({'ERROR'}, "Not connected to RayPump client")
+            self.report({'ERROR'}, "Blender is note connected with RayPump - click Connect/Show button")
             return {'CANCELLED'}
         else:
             bpy.ops.wm.save_mainfile()	#save actual state to main .blend

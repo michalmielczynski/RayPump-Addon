@@ -23,12 +23,14 @@ SOCKET = None
 RAYPUMP_PATH = None
 RAYPUMP_VERSION = 0.995 # what version we will connect to?
         
-class ConnectClientOperator(bpy.types.Operator):
-    bl_idname = "object.raypump_connect_operator"
-    bl_label = "Connect/Show local RayPump"
-    bl_description = "(re)Initializes connection with the local RayPump client"
-
-    def execute(self, context):
+class MessageRenderOperator(bpy.types.Operator):
+    bl_idname = "object.raypump_message_operator"
+    bl_label = "Save & Send To RayPump"
+    bl_description = "Saves, sends and schedules current scene to the RayPump Accelerator" 
+        
+    # @brief Connecting with local RayPump client software
+    # @returns true if sucessful, false otherwise
+    def connect(self, context):
         global SOCKET, TCP_IP, TCP_PORT, RAYPUMP_PATH
         scene = context.scene       
             
@@ -39,7 +41,7 @@ class ConnectClientOperator(bpy.types.Operator):
         except socket.error as msg:
             self.report({'ERROR'}, "Cannot create a socket")
             SOCKET = None
-            return {'CANCELLED'}
+            return False
 
         try:
             SOCKET.connect((TCP_IP, TCP_PORT))
@@ -47,7 +49,7 @@ class ConnectClientOperator(bpy.types.Operator):
             self.report({'ERROR'}, "Failed to connect: is RayPump running?")
             SOCKET.close()
             SOCKET = None
-            return {'CANCELLED'}
+            return False
         
         try:
             RAYPUMP_PATH = SOCKET.makefile().readline().rstrip()
@@ -57,94 +59,17 @@ class ConnectClientOperator(bpy.types.Operator):
             self.report({'ERROR'}, "Failed to receive RayPump's path from RayPump; please use only ASCII paths")
             SOCKET.close()
             SOCKET = None
-            return {'CANCELLED'}
+            return False
         
         self.report({'INFO'}, "Connected with RayPump")
         the_version = json.dumps({
             'VERSION':RAYPUMP_VERSION
         })
         SOCKET.sendall(bytes(the_version, 'UTF-8'))
-        return {'FINISHED'}
-
-
-class MessageRenderOperator(bpy.types.Operator):
-    bl_idname = "object.raypump_message_operator"
-    bl_label = "Save & Send To RayPump"
-    bl_description = "Saves, sends and schedules current scene to the RayPump Accelerator" 
-
-    def execute(self, context):
-        global SOCKET, RAYPUMP_PATH
-        external_paths = []
-        
-        if (SOCKET == None):
-            self.report({'ERROR'}, "Blender is note connected with RayPump - click Connect/Show button")
-            return {'CANCELLED'}
-        else:
-            bpy.ops.wm.save_mainfile()	#save actual state to main .blend
-            
-            original_fpath = bpy.data.filepath
-            destination_fpath = RAYPUMP_PATH + "/" + os.path.basename(original_fpath)
-            
-            ## @section: changes below will be saved to the RayPump's scene copy 
-            
-            #getting all the linked files
-            bpy.ops.object.make_local(type='ALL')
-            
-            #getting all the fluid cache paths
-            bpy.ops.file.make_paths_absolute()
-            for object in bpy.data.objects:
-                for modifier in object.modifiers:
-                    if (modifier.name == "Fluidsim"):
-                        if (modifier.settings.type == "DOMAIN"):
-                            external_paths.append(os.path.abspath(modifier.settings.filepath))
-                            object.modifiers["Fluidsim"].settings.filepath = "//"
-            
-            ## OTHER EXTERNAL PATHS CAN BE ADDED HERE 
-            
-            context.scene.update
-                            
-            try:
-                bpy.ops.file.pack_all()
-                bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)	#save .blend for raypump
-            except RuntimeError as msg:
-                self.report({'ERROR'}, "Packing has failed (missing textures?)")
-                print(msg)
-                return {'CANCELLED'}
-            finally:
-                ## @endsection: reopen main blend
-                bpy.ops.wm.open_mainfile(filepath=original_fpath)
-            
-            try:    
-                the_dump = json.dumps({
-                    'SCHEDULE':destination_fpath,
-                    'FRAME_CURRENT':bpy.context.scene.frame_current,
-                    'FRAME_START':bpy.context.scene.frame_start,
-                    'FRAME_END':bpy.context.scene.frame_end,
-                    'JOB_TYPE':bpy.context.scene.raypump_jobtype,
-                    'EXTERNAL_PATHS' :external_paths
-                    })
-                SOCKET.sendall(bytes(the_dump, 'UTF-8'))
-                SYNCHRONIZING = True
-                
-            except socket.error as msg:
-                self.report({'ERROR'}, "Error connecting RayPump client")
-                SOCKET = None
-                return {'CANCELLED'}
-
-        SynchroSuccessful = SOCKET.makefile().readline().rstrip()
-        if (SynchroSuccessful == 'SUCCESS'):
-            self.report({'INFO'}, 'Job send')
-        else:
-            self.report({'ERROR'}, 'Failed to schedule. Check RayPump messages')
-        return {'FINISHED'}
-	
-		
-class RemoveMissingPathOperator(bpy.types.Operator):
-    bl_idname = "object.raypump_remove_missing_paths_operator"
-    bl_label = "Fix Missing Paths"
-    bl_description = "Removes invalid file names from the scene"
+        return True
     
-    def execute(self, context):
+    # @brief fixes some missing paths (textures, fonts) that helps to pack the scene for RayPump farm
+    def fix(self, context):
         fixApplied = False
         for image in bpy.data.images:
             path = image.filepath
@@ -164,9 +89,80 @@ class RemoveMissingPathOperator(bpy.types.Operator):
                         
         if fixApplied:
             self.report({'INFO'}, 'Invalid entries removed')
+            print("Invalid entries removed")
+
+        return fixApplied
+
+    # @brief main method called after clicking the button by user
+    def execute(self, context):
+        global SOCKET, RAYPUMP_PATH
+        external_paths = []
+        
+        if (self.connect(context) == False):
+            print('Aborting due to connecting error')
+            return {'CANCELLED'} 
+        
+        self.fix(context)
+        
+        bpy.ops.wm.save_mainfile()	#save actual state to main .blend
+        
+        original_fpath = bpy.data.filepath
+        destination_fpath = RAYPUMP_PATH + "/" + os.path.basename(original_fpath)
+        
+        ## @section: changes below will be saved to the RayPump's scene copy 
+        
+        #getting all the linked files
+        bpy.ops.object.make_local(type='ALL')
+        
+        #getting all the fluid cache paths
+        bpy.ops.file.make_paths_absolute()
+        for object in bpy.data.objects:
+            for modifier in object.modifiers:
+                if (modifier.name == "Fluidsim"):
+                    if (modifier.settings.type == "DOMAIN"):
+                        external_paths.append(os.path.abspath(modifier.settings.filepath))
+                        object.modifiers["Fluidsim"].settings.filepath = "//"
+        
+        ## OTHER EXTERNAL PATHS CAN BE ADDED HERE 
+        
+        context.scene.update
+
+                        
+        try:
+            bpy.ops.file.pack_all()
+            bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)	#save .blend for raypump
+        except RuntimeError as msg:
+            self.report({'WARNING'}, "Packing has failed (missing data?)")
+            print(msg)
+            #return {'CANCELLED'}
+        finally:
+            ## @endsection: reopen main blend
+            bpy.ops.wm.open_mainfile(filepath=original_fpath)
+        
+        try:    
+            the_dump = json.dumps({
+                'SCHEDULE':destination_fpath,
+                'FRAME_CURRENT':bpy.context.scene.frame_current,
+                'FRAME_START':bpy.context.scene.frame_start,
+                'FRAME_END':bpy.context.scene.frame_end,
+                'JOB_TYPE':bpy.context.scene.raypump_jobtype,
+                'EXTERNAL_PATHS' :external_paths
+                })
+            SOCKET.sendall(bytes(the_dump, 'UTF-8'))
+            SYNCHRONIZING = True
+            
+        except socket.error as msg:
+            self.report({'ERROR'}, "Error connecting RayPump client")
+            SOCKET = None
+            return {'CANCELLED'}
+
+        SynchroSuccessful = SOCKET.makefile().readline().rstrip()
+        if (SynchroSuccessful == 'SUCCESS'):
+            self.report({'INFO'}, 'Job send')
         else:
-            self.report({'INFO'}, 'No invalid entries found')   
+            self.report({'ERROR'}, 'Failed to schedule. Check RayPump messages')
         return {'FINISHED'}
+	
 
 def init_properties():
     bpy.types.Scene.raypump_jobtype = EnumProperty(
@@ -218,18 +214,12 @@ class RenderPumpPanel(bpy.types.Panel):
         row.prop(scene, "raypump_jobtype", text="Job Type")
         
 def register():
-    #init_properties()
     bpy.utils.register_class(RenderPumpPanel)
     bpy.utils.register_class(MessageRenderOperator)
-    bpy.utils.register_class(ConnectClientOperator)
-    bpy.utils.register_class(RemoveMissingPathOperator)
 
 def unregister():
     bpy.utils.unregister_class(RenderPumpPanel)
     bpy.utils.unregister_class(MessageRenderOperator)
-    bpy.utils.unregister_class(ConnectClientOperator)
-    bpy.utils.unregister_class(RemoveMissingPathOperator)
-
 
 if __name__ == "__main__":
     register()

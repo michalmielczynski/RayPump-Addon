@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com, tiago.shibata@gmail.com',
-    'version': '(0, 4, 0)',
+    'version': '(0, 9, 9, 5)',
     'blender': (2, 6, 6),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Easy to use free online GPU-farm for Cycles',
@@ -21,7 +21,7 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
 SOCKET = None 
 RAYPUMP_PATH = None
-RAYPUMP_VERSION = 0.994 # what version we will connect to?
+RAYPUMP_VERSION = 0.995 # what version we will connect to?
         
 class ConnectClientOperator(bpy.types.Operator):
     bl_idname = "object.raypump_connect_operator"
@@ -137,11 +137,12 @@ class MessageRenderOperator(bpy.types.Operator):
         else:
             self.report({'ERROR'}, 'Failed to schedule. Check RayPump messages')
         return {'FINISHED'}
-
-class RemoveMissedTexturesOperator(bpy.types.Operator):
-    bl_idname = "object.raypump_remove_missing_textures_operator"
-    bl_label = "Fix Textures"
-    bl_description = "Removes invalid image file names from the scene"
+	
+		
+class RemoveMissingPathOperator(bpy.types.Operator):
+    bl_idname = "object.raypump_remove_missing_paths_operator"
+    bl_label = "Fix Missing Paths"
+    bl_description = "Removes invalid file names from the scene"
     
     def execute(self, context):
         fixApplied = False
@@ -205,7 +206,7 @@ class RenderPumpPanel(bpy.types.Panel):
         col = split.column()
         col.operator("object.raypump_connect_operator")
         col = split.column()
-        col.operator("object.raypump_remove_missing_textures_operator")
+        col.operator("object.raypump_remove_missing_paths_operator")
         
         #Section: schedule       
         row = layout.row()
@@ -221,13 +222,13 @@ def register():
     bpy.utils.register_class(RenderPumpPanel)
     bpy.utils.register_class(MessageRenderOperator)
     bpy.utils.register_class(ConnectClientOperator)
-    bpy.utils.register_class(RemoveMissedTexturesOperator)
+    bpy.utils.register_class(RemoveMissingPathOperator)
 
 def unregister():
     bpy.utils.unregister_class(RenderPumpPanel)
     bpy.utils.unregister_class(MessageRenderOperator)
     bpy.utils.unregister_class(ConnectClientOperator)
-    bpy.utils.unregister_class(RemoveMissedTexturesOperator)
+    bpy.utils.unregister_class(RemoveMissingPathOperator)
 
 
 if __name__ == "__main__":

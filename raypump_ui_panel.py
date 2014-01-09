@@ -102,8 +102,6 @@ class MessageRenderOperator(bpy.types.Operator):
             print('Aborting due to connecting error')
             return {'CANCELLED'} 
         
-        self.fix(context)
-        
         bpy.ops.wm.save_mainfile()	#save actual state to main .blend
         
         original_fpath = bpy.data.filepath
@@ -126,18 +124,17 @@ class MessageRenderOperator(bpy.types.Operator):
         ## OTHER EXTERNAL PATHS CAN BE ADDED HERE 
         
         context.scene.update
-
                         
         try:
             bpy.ops.file.pack_all()
-            bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)	#save .blend for raypump
         except RuntimeError as msg:
             self.report({'WARNING'}, "Packing has failed (missing data?)")
             print(msg)
-            #return {'CANCELLED'}
         finally:
             ## @endsection: reopen main blend
-            bpy.ops.wm.open_mainfile(filepath=original_fpath)
+            bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)
+            
+        bpy.ops.wm.open_mainfile(filepath=original_fpath)
         
         try:    
             the_dump = json.dumps({
@@ -180,7 +177,7 @@ def init_properties():
         subtype="FILE_PATH",
         description="Path to RayPump executable")
 
-# @deprecated
+# @deprecated we move all the funtionality into single Save&Send button inside Render Panel
 class RenderPumpPanel(bpy.types.Panel):
     init_properties()
     """Creates a Panel in the scene context of the properties editor"""
@@ -211,7 +208,6 @@ class RenderPumpPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(scene, "raypump_jobtype", text="Job Type")
         
-# @brief creates Save&Send button in Render panel - instead of creating whole new RayPump panel        
 def raypump_render(self, context):
     layout = self.layout
     scene = context.scene
@@ -226,14 +222,12 @@ def raypump_render(self, context):
     row.prop(scene, "raypump_jobtype", text="Job Type")
    
 def register():
-    #bpy.utils.register_class(RenderPumpPanel)
     bpy.utils.register_class(MessageRenderOperator)
     bpy.types.RENDER_PT_render.append(raypump_render)
 
 def unregister():
     bpy.types.RENDER_PT_render.remove(raypump_render)
     bpy.utils.unregister_class(MessageRenderOperator)
-    #bpy.utils.unregister_class(RenderPumpPanel)
 
 if __name__ == "__main__":
     register()

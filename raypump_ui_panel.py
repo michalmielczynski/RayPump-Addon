@@ -162,8 +162,7 @@ class MessageRenderOperator(bpy.types.Operator):
         else:
             self.report({'ERROR'}, 'Failed to schedule. Check RayPump messages')
         return {'FINISHED'}
-	
-
+        
 def init_properties():
     bpy.types.Scene.raypump_jobtype = EnumProperty(
         items = [('FREE', 'Free', 'Suitable for less demanding jobs (limited daily)'), 
@@ -181,8 +180,7 @@ def init_properties():
         subtype="FILE_PATH",
         description="Path to RayPump executable")
 
-    
-
+# @deprecated
 class RenderPumpPanel(bpy.types.Panel):
     init_properties()
     """Creates a Panel in the scene context of the properties editor"""
@@ -213,13 +211,29 @@ class RenderPumpPanel(bpy.types.Panel):
         row = layout.row()
         row.prop(scene, "raypump_jobtype", text="Job Type")
         
+# @brief creates Save&Send button in Render panel - instead of creating whole new RayPump panel        
+def raypump_render(self, context):
+    layout = self.layout
+    scene = context.scene
+    
+    #Section: schedule       
+    row = layout.row()
+    row.scale_y = 2.0
+    row.operator("object.raypump_message_operator")
+    
+    #Section: image format
+    row = layout.row()
+    row.prop(scene, "raypump_jobtype", text="Job Type")
+   
 def register():
-    bpy.utils.register_class(RenderPumpPanel)
+    #bpy.utils.register_class(RenderPumpPanel)
     bpy.utils.register_class(MessageRenderOperator)
+    bpy.types.RENDER_PT_render.append(raypump_render)
 
 def unregister():
-    bpy.utils.unregister_class(RenderPumpPanel)
+    bpy.types.RENDER_PT_render.remove(raypump_render)
     bpy.utils.unregister_class(MessageRenderOperator)
+    #bpy.utils.unregister_class(RenderPumpPanel)
 
 if __name__ == "__main__":
     register()

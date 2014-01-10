@@ -25,7 +25,7 @@ RAYPUMP_VERSION = 0.995 # what version we will connect to?
         
 class MessageRenderOperator(bpy.types.Operator):
     bl_idname = "object.raypump_message_operator"
-    bl_label = "Save & Send To RayPump"
+    bl_label = "RayPump"
     bl_description = "Saves, sends and schedules current scene to the RayPump Accelerator" 
         
     # @brief Connecting with local RayPump client software
@@ -102,8 +102,11 @@ class MessageRenderOperator(bpy.types.Operator):
             print('Aborting due to connecting error')
             return {'CANCELLED'} 
         
-        bpy.ops.wm.save_mainfile()	#save actual state to main .blend
-        
+        try:
+            bpy.ops.wm.save_mainfile()	#save actual state to main .blend
+        except RuntimeError as msg:
+            print(msg)
+
         original_fpath = bpy.data.filepath
         destination_fpath = RAYPUMP_PATH + "/" + os.path.basename(original_fpath)
         
@@ -130,10 +133,13 @@ class MessageRenderOperator(bpy.types.Operator):
         except RuntimeError as msg:
             self.report({'WARNING'}, "Packing has failed (missing data?)")
             print(msg)
-        finally:
-            ## @endsection: reopen main blend
+        
+        try:
             bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)
+        except RuntimeError as msg:
+            print(msg)
             
+        ## @endsection: reopen main blend
         bpy.ops.wm.open_mainfile(filepath=original_fpath)
         
         try:    
@@ -164,8 +170,8 @@ def init_properties():
     bpy.types.Scene.raypump_jobtype = EnumProperty(
         items = [('FREE', 'Free', 'Suitable for less demanding jobs (limited daily)'), 
                 ('STATIC', 'Static', 'Renders current frame using Render Points'),
-                ('ANIMATION', 'Animation', 'Renders animation using Render Points'), 
-                ('STRESS-TEST', 'Stress-Test', 'Estimates cost and test GPU compatibility')
+                ('ANIMATION', 'Animation', 'Renders animation using Render Points')
+                #('STRESS-TEST', 'Stress-Test', 'Estimates cost and test GPU compatibility') # not very useful atm
                 ],
         default = 'FREE',
         #description = 'Set the way RayPump will treat scheduled job',
@@ -177,14 +183,10 @@ def init_properties():
         subtype="FILE_PATH",
         description="Path to RayPump executable")
 
-# @deprecated we move all the funtionality into single Save&Send button inside Render Panel
+# @deprecated we move all the functionality into single Save&Send button inside Render Panel
 class RenderPumpPanel(bpy.types.Panel):
-    init_properties()
-    """Creates a Panel in the scene context of the properties editor"""
+
     bl_label = "RayPump.com"
-    bl_idname = "SCENE_PT_layout"
-    bl_space_type = 'PROPERTIES'
-    bl_region_type = 'WINDOW'
     bl_context = "render"
 
     def draw(self, context):
@@ -201,7 +203,7 @@ class RenderPumpPanel(bpy.types.Panel):
         
         #Section: schedule       
         row = layout.row()
-        row.scale_y = 2.0
+        row.scale_y = 1.0
         row.operator("object.raypump_message_operator")
         
         #Section: image format
@@ -212,18 +214,19 @@ def raypump_render(self, context):
     layout = self.layout
     scene = context.scene
     
-    #Section: schedule       
     row = layout.row()
-    row.scale_y = 2.0
-    row.operator("object.raypump_message_operator")
-    
-    #Section: image format
-    row = layout.row()
-    row.prop(scene, "raypump_jobtype", text="Job Type")
+    split = row.split(percentage=0.66)
+    col = split.column()
+    col.prop(scene, "raypump_jobtype", text="Job Type")
+    col = split.column()
+    col.operator("object.raypump_message_operator")
+
    
 def register():
+    init_properties()
     bpy.utils.register_class(MessageRenderOperator)
     bpy.types.RENDER_PT_render.append(raypump_render)
+
 
 def unregister():
     bpy.types.RENDER_PT_render.remove(raypump_render)

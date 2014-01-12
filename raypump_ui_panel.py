@@ -140,7 +140,11 @@ class MessageRenderOperator(bpy.types.Operator):
             print(msg)
             
         ## @endsection: reopen main blend
-        bpy.ops.wm.open_mainfile(filepath=original_fpath)
+        try:
+            bpy.ops.wm.open_mainfile(filepath=original_fpath)
+        except RuntimeError as msg:
+            self.report({'WARNING'}, "Original scene could not be reopened")
+            print(msg)
         
         try:    
             the_dump = json.dumps({

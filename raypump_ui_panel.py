@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com, tiago.shibata@gmail.com',
-    'version': '(0, 9, 9, 5)',
+    'version': '(0, 9, 9, 7)',
     'blender': (2, 6, 6),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Easy to use free online GPU-farm for Cycles',
@@ -21,7 +21,31 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
 SOCKET = None 
 RAYPUMP_PATH = None
-RAYPUMP_VERSION = 0.995 # what version we will connect to?
+RAYPUMP_VERSION = 0.997 # what version we will connect to?
+        
+class MessageViewOperator(bpy.types.Operator):
+    bl_idname = "object.raypump_view_operator"
+    bl_label = "View"
+    bl_description = "Opens folder containing last render(s)"
+    
+    def execute(self, context):
+        global SOCKET, TCP_IP, TCP_PORT, RAYPUMP_PATH
+        
+        if SOCKET == None:
+            self.report({'WARNING'}, "Not connected")
+            return {'CANCELLED'}
+        
+        try:    
+            the_dump = json.dumps({'VIEW': 'LAST_RENDER'})
+            SOCKET.sendall(bytes(the_dump, 'UTF-8'))
+            
+        except socket.error as msg:
+            self.report({'ERROR'}, "Error connecting RayPump client")
+            SOCKET = None
+            return {'CANCELLED'}
+
+        return {'FINISHED'}
+        
         
 class MessageRenderOperator(bpy.types.Operator):
     bl_idname = "object.raypump_message_operator"
@@ -217,23 +241,27 @@ class RenderPumpPanel(bpy.types.Panel):
 def raypump_render(self, context):
     layout = self.layout
     scene = context.scene
-    
+
     row = layout.row()
-    split = row.split(percentage=0.66)
+    row.operator("object.raypump_message_operator")    
+    row = layout.row()
+    split = row.split(percentage=0.6)
     col = split.column()
     col.prop(scene, "raypump_jobtype", text="Job Type")
     col = split.column()
-    col.operator("object.raypump_message_operator")
+    col.operator("object.raypump_view_operator")
 
    
 def register():
     init_properties()
     bpy.utils.register_class(MessageRenderOperator)
+    bpy.utils.register_class(MessageViewOperator)
     bpy.types.RENDER_PT_render.append(raypump_render)
 
 
 def unregister():
     bpy.types.RENDER_PT_render.remove(raypump_render)
+    bpy.utils.unregister_class(MessageViewOperator)
     bpy.utils.unregister_class(MessageRenderOperator)
 
 if __name__ == "__main__":

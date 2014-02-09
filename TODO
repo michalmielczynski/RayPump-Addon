@@ -1,0 +1,33 @@
+- Raypump shows "Blender connected" after the socket between blender and RayPump has been closed.
+- Fix Unicode issues
+DONE - Show an error message when UTF-8 characters can't be read
+DONE - Don't pack files into main blend
+
+---
+Issue: forcing scene saving during sending out (with linked files)
+
+Description:
+To pack external files in another blend, the script saves the current blend before opening another one.
+Might be a problem if the user doesn't want to overwrite his blend.
+
+Possible solution:
+This is a more general issue - any changes introduced to the scene by the RayPump's script is unwanted
+from the user's point of view (e.g. 'fixing textures', packing files, changing linked data status, messing with
+undo stack, ...).
+
+One of ways to avoid those issues could be:
+- save a copy of the current scene;
+- launch another Blender process (console only, managed by the RayPump);
+- make all necessary changes inside the copy and then send it to the farm;
+
+That way user's scene stays intact. 
+
+Possible drawbacks: bigger scenes can cause memory issues (two Blender copies in RAM)
+
+
+---
+Issue: running the script alters the scene history
+
+Description:
+User can get confused with double entries in both File->Open Recent... and splash screen 'Recent' section. Those are side effect of RayPump's script saving
+the scene in BUFFER directory. Any idea to keep those entries hidden?

@@ -126,6 +126,9 @@ class MessageRenderOperator(bpy.types.Operator):
             print('Aborting due to connecting error')
             return {'CANCELLED'} 
         
+        #if (bpy.context.space_data.viewport_shade == 'RENDERED'):
+        #    bpy.context.space_data.viewport_shade = 'SOLID' #prevents Blender crash on slower computers
+            
         try:
             bpy.ops.wm.save_mainfile()	#save actual state to main .blend
         except RuntimeError as msg:

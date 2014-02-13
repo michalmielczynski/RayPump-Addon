@@ -157,9 +157,13 @@ class MessageRenderOperator(bpy.types.Operator):
                         
         try:
             bpy.ops.file.pack_all()
-        except RuntimeError as msg:
-            self.report({'WARNING'}, "Packing has failed (missing data?)")
-            print(msg)
+        except RuntimeError:
+            try:
+                self.fix(None)   # @todo add content variable
+                bpy.ops.file.pack_all()
+            except RuntimeError as msg:
+                self.report({'WARNING'}, "Packing has failed (missing data?)")
+                print(msg)
         
         try:
             bpy.ops.wm.save_as_mainfile(filepath=destination_fpath, copy=True)

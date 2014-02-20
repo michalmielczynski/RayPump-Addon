@@ -130,12 +130,13 @@ class MessageRenderOperator(bpy.types.Operator):
         #    bpy.context.space_data.viewport_shade = 'SOLID' #prevents Blender crash on slower computers
             
         try:
-            bpy.ops.wm.save_mainfile()	#save actual state to main .blend
+            bpy.ops.wm.save_mainfile()	#save actual state to main .blend - this is temporary @TODO NOT OPTIMAL
         except RuntimeError as msg:
             print(msg)
 
         original_fpath = bpy.data.filepath
-        destination_fpath = RAYPUMP_PATH + "/" + os.path.basename(original_fpath)
+        simplifiedName = u'' + os.path.basename(original_fpath)
+        destination_fpath = RAYPUMP_PATH + "/" + simplifiedName.encode('ascii', 'ignore').decode('utf8')
         
         ## @section: changes below will be saved to the RayPump's scene copy 
         

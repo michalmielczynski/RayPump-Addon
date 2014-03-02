@@ -143,6 +143,9 @@ class MessageRenderOperator(bpy.types.Operator):
         #getting all the linked files
         bpy.ops.object.make_local(type='ALL')
         
+        #required to work with external paths
+        bpy.ops.file.make_paths_absolute()
+        
         #getting all the fluid cache paths
         bpy.ops.file.make_paths_absolute()
         for object in bpy.data.objects:
@@ -151,6 +154,15 @@ class MessageRenderOperator(bpy.types.Operator):
                     if (modifier.settings.type == "DOMAIN"):
                         external_paths.append(os.path.abspath(modifier.settings.filepath))
                         object.modifiers["Fluidsim"].settings.filepath = "//"
+        
+        #getting image sequences and movie files for textures (not properly packed with blend file)
+        for image in bpy.data.images:
+            if (image.source == "SEQUENCE") or (image.source == "MOVIE"):
+                nameSplit = os.path.split(os.path.abspath(image.filepath_raw))
+                external_paths.append(nameSplit[0])
+                image.filepath = "//" + nameSplit[1]
+                image.filepath_raw = image.filepath
+            
         
         ## OTHER EXTERNAL PATHS CAN BE ADDED HERE 
         
@@ -252,6 +264,7 @@ def raypump_render(self, context):
     scene = context.scene
 
     row = layout.row()
+    row.scale_y = 2.0
     row.operator("object.raypump_message_operator")    
     row = layout.row()
     split = row.split(percentage=0.6)

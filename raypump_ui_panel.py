@@ -1,8 +1,8 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com, tiago.shibata@gmail.com',
-    'version': '(0, 9, 9, 8)',
-    'blender': (2, 6, 6),
+    'version': '(1, 1, 0, 0)',
+    'blender': (2, 7, 0),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Easy to use free online GPU-farm for Cycles',
     'category': 'Render'
@@ -21,7 +21,7 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
 SOCKET = None 
 RAYPUMP_PATH = None
-RAYPUMP_VERSION = 0.998 # what version we will connect to?
+RAYPUMP_VERSION = 1.100 # what version we will connect to?
         
 class MessageViewOperator(bpy.types.Operator):
     bl_idname = "object.raypump_view_operator"
@@ -220,7 +220,6 @@ def init_properties():
         items = [('FREE', 'Free', 'Suitable for less demanding jobs (limited daily)'), 
                 ('STATIC', 'Static', 'Renders current frame using Render Points'),
                 ('ANIMATION', 'Animation', 'Renders animation using Render Points')
-                #('STRESS-TEST', 'Stress-Test', 'Estimates cost and test GPU compatibility') # not very useful atm
                 ],
         default = 'FREE',
         #description = 'Set the way RayPump will treat scheduled job',

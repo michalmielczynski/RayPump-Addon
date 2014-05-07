@@ -22,7 +22,6 @@ SOCKET = None
 RAYPUMP_PATH = None
 RAYPUMP_VERSION = 1.100    # what version we will connect to?
 
-
 class MessageViewOperator(bpy.types.Operator):
     bl_idname = "object.raypump_view_operator"
     bl_label = "View"
@@ -50,11 +49,9 @@ class MessageViewOperator(bpy.types.Operator):
 
 class MessageRenderOperator(bpy.types.Operator):
     bl_idname = "object.raypump_message_operator"
-    bl_label = "RayPump"
+    bl_label = "Render Online"
     bl_description = "Sends current scene to the RayPump Accelerator"
 
-    # @brief Connecting with local RayPump client software
-    # @returns true if sucessful, false otherwise
     def connect(self, context):
         global SOCKET, TCP_IP, TCP_PORT, RAYPUMP_PATH
 
@@ -91,7 +88,7 @@ class MessageRenderOperator(bpy.types.Operator):
         SOCKET.sendall(bytes(the_version, 'UTF-8'))
         return True
 
-    # @brief fixes some missing paths (textures, fonts) that helps to pack the scene for RayPump farm
+    # section: fixes some missing paths (textures, fonts) that helps to pack the scene for RayPump farm
     def fix(self, context):
         fixApplied = False
         for image in bpy.data.images:
@@ -116,7 +113,7 @@ class MessageRenderOperator(bpy.types.Operator):
 
         return fixApplied
 
-    # @brief main method called after clicking the button by user
+    # section: main method called after clicking the button by user
     def execute(self, context):
         global SOCKET, RAYPUMP_PATH
         external_paths = []
@@ -125,8 +122,9 @@ class MessageRenderOperator(bpy.types.Operator):
             print('Aborting due to connecting error')
             return {'CANCELLED'}
 
-        #if (bpy.context.space_data.viewport_shade == 'RENDERED'):
-        #    bpy.context.space_data.viewport_shade = 'SOLID' #prevents Blender crash on slower computers
+        if (bpy.context.scene.render.image_settings.file_format == 'OPEN_EXR_MULTILAYER'):
+            print('Multilayer EXR will not support tiles. Turning tiles off')
+            bpy.context.scene.ray_pump_use_tiles = False
 
         try:
             bpy.ops.wm.save_mainfile()    # save actual state to main .blend - this is temporary @TODO NOT OPTIMAL
@@ -137,7 +135,8 @@ class MessageRenderOperator(bpy.types.Operator):
         simplifiedName = u'' + os.path.basename(original_fpath)
         destination_fpath = RAYPUMP_PATH + "/" + simplifiedName.encode('ascii', 'ignore').decode('utf8')
 
-        ## @section: changes below will be saved to the RayPump's scene copy
+        # section: changes below will be saved to the RayPump's scene copy
+        # ---------------------------------------------------------------
 
         #getting all the linked files
         bpy.ops.object.make_local(type='ALL')
@@ -181,7 +180,8 @@ class MessageRenderOperator(bpy.types.Operator):
         except RuntimeError as msg:
             print(msg)
 
-        ## @endsection: reopen main blend
+        # ---------------------------------------------------------------
+        # endsection: reopen main blend
         try:
             bpy.ops.wm.open_mainfile(filepath=original_fpath)
         except RuntimeError as msg:
@@ -197,10 +197,10 @@ class MessageRenderOperator(bpy.types.Operator):
                 'EXTERNAL_PATHS': external_paths,
                 'VERSION_CYCLE': bpy.app.version_cycle,
                 'SCHEDULE': destination_fpath,
-                'RESOLUTION': context.scene.render.resolution_x * context.scene.render.resolution_y * (context.scene.render.resolution_percentage / 100)
+                'RESOLUTION': context.scene.render.resolution_x * context.scene.render.resolution_y * (context.scene.render.resolution_percentage / 100),
+                'USE_TILES' : bpy.context.scene.ray_pump_use_tiles
                 })
             SOCKET.sendall(bytes(the_dump, 'UTF-8'))
-            # SYNCHRONIZING = True
 
         except socket.error as msg:
             self.report({'ERROR'}, "Error connecting RayPump client")
@@ -222,70 +222,64 @@ def init_properties():
                 ('ANIMATION', 'Animation', 'Renders animation using Render Points')
                 ],
         default='FREE',
-        #description = 'Set the way RayPump will treat scheduled job',
         name="Job Type")
 
-    # @todo either addon, either blender setting (currently not used, anyway)
+    # todo: either addon, either blender setting (currently not used, anyway)
     bpy.types.Scene.ray_pump_path = StringProperty(
         name="RayPump (exe)",
         subtype="FILE_PATH",
         description="Path to RayPump executable")
+        
+    bpy.types.Scene.ray_pump_use_tiles = BoolProperty(
+        name="Use tiles",
+        description="Split bigger jobs. Does not support Multilayer-EXR!",
+        default=True)
 
 
-# @deprecated we move all the functionality into single Save&Send button inside Render Panel
-class RenderPumpPanel(bpy.types.Panel):
-
-    bl_label = "RayPump.com"
+class RayPumpPanel(bpy.types.Panel):
+    init_properties()
+    """Creates a Panel in the scene context of the properties editor"""
+    bl_label = "RayPump II Online Cycles Accelerator"
+    bl_idname = "SCENE_PT_layout"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
     bl_context = "render"
 
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-
-        #Section: connection and textures fix
-        row = layout.row(align=True)
-        split = row.split(percentage=0.66)
-        col = split.column()
-        col.operator("object.raypump_connect_operator")
-        col = split.column()
-        col.operator("object.raypump_remove_missing_paths_operator")
-
-        #Section: schedule
+        
+        # section: set
         row = layout.row()
-        row.scale_y = 1.0
-        row.operator("object.raypump_message_operator")
+        split = row.split(percentage=0.7)
+        col = split.column()
+        col.prop(scene, "raypump_jobtype", text="Job Type")
+        col = split.column()
+        col.prop(scene, "ray_pump_use_tiles")
 
-        #Section: image format
+        # section: go
         row = layout.row()
-        row.prop(scene, "raypump_jobtype", text="Job Type")
-
-
-def raypump_render(self, context):
-    layout = self.layout
-    scene = context.scene
-
-    row = layout.row()
-    row.scale_y = 2.0
-    row.operator("object.raypump_message_operator")
-    row = layout.row()
-    split = row.split(percentage=0.6)
-    col = split.column()
-    col.prop(scene, "raypump_jobtype", text="Job Type")
-    col = split.column()
-    col.operator("object.raypump_view_operator")
-
+        row.scale_y = 1.6
+        row.operator("object.raypump_message_operator", icon='RENDER_STILL')
+                
+        row = layout.row()
+        split = row.split()
+        col = split.column()
+        col.operator("object.raypump_view_operator")
+        col = split.column()
+        col.operator('wm.url_open', text='Help', icon='URL').url = "http://www.raypump.com/help/4-first-time-step-by-step-instruction"
+        
 
 def register():
-    init_properties()
+    bpy.utils.register_class(RayPumpPanel)
     bpy.utils.register_class(MessageRenderOperator)
     bpy.utils.register_class(MessageViewOperator)
-    bpy.types.RENDER_PT_render.append(raypump_render)
 
 
 def unregister():
-    bpy.types.RENDER_PT_render.remove(raypump_render)
     bpy.utils.unregister_class(MessageViewOperator)
     bpy.utils.unregister_class(MessageRenderOperator)
+    bpy.utils.unregister_class(RayPumpPanel)
 
 if __name__ == "__main__":
     register()

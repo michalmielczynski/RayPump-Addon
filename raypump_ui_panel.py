@@ -22,6 +22,7 @@ SOCKET = None
 RAYPUMP_PATH = None
 RAYPUMP_VERSION = 1.100    # what version we will connect to?
 
+
 class MessageViewOperator(bpy.types.Operator):
     bl_idname = "object.raypump_view_operator"
     bl_label = "View"
@@ -124,6 +125,7 @@ class MessageRenderOperator(bpy.types.Operator):
 
         if (bpy.context.scene.render.image_settings.file_format == 'OPEN_EXR_MULTILAYER'):
             print('Multilayer EXR will not support tiles. Turning tiles off')
+            self.report({'WARNING'}, 'Turning tiles off for Multilayer EXR')
             bpy.context.scene.ray_pump_use_tiles = False
 
         try:
@@ -132,7 +134,8 @@ class MessageRenderOperator(bpy.types.Operator):
             print(msg)
 
         original_fpath = bpy.data.filepath
-        simplifiedName = u'' + os.path.basename(original_fpath)
+        simplifiedName = '' + os.path.basename(original_fpath)
+        simplifiedName = simplifiedName.replace("_", "-")
         destination_fpath = RAYPUMP_PATH + "/" + simplifiedName.encode('ascii', 'ignore').decode('utf8')
 
         # section: changes below will be saved to the RayPump's scene copy
@@ -198,7 +201,7 @@ class MessageRenderOperator(bpy.types.Operator):
                 'VERSION_CYCLE': bpy.app.version_cycle,
                 'SCHEDULE': destination_fpath,
                 'RESOLUTION': context.scene.render.resolution_x * context.scene.render.resolution_y * (context.scene.render.resolution_percentage / 100),
-                'USE_TILES' : bpy.context.scene.ray_pump_use_tiles
+                'USE_TILES': bpy.context.scene.ray_pump_use_tiles
                 })
             SOCKET.sendall(bytes(the_dump, 'UTF-8'))
 
@@ -229,11 +232,11 @@ def init_properties():
         name="RayPump (exe)",
         subtype="FILE_PATH",
         description="Path to RayPump executable")
-        
+
     bpy.types.Scene.ray_pump_use_tiles = BoolProperty(
         name="Use tiles",
         description="Split bigger jobs. Does not support Multilayer-EXR!",
-        default=True)
+        default=False)
 
 
 class RayPumpPanel(bpy.types.Panel):
@@ -248,7 +251,7 @@ class RayPumpPanel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         scene = context.scene
-        
+
         # section: set
         row = layout.row()
         split = row.split(percentage=0.7)
@@ -261,14 +264,14 @@ class RayPumpPanel(bpy.types.Panel):
         row = layout.row()
         row.scale_y = 1.6
         row.operator("object.raypump_message_operator", icon='RENDER_STILL')
-                
+
         row = layout.row()
         split = row.split()
         col = split.column()
         col.operator("object.raypump_view_operator")
         col = split.column()
         col.operator('wm.url_open', text='Help', icon='URL').url = "http://www.raypump.com/help/4-first-time-step-by-step-instruction"
-        
+
 
 def register():
     bpy.utils.register_class(RayPumpPanel)

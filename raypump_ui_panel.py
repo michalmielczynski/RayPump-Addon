@@ -124,10 +124,20 @@ class MessageRenderOperator(bpy.types.Operator):
             return {'CANCELLED'}
 
         if (bpy.context.scene.render.image_settings.file_format == 'OPEN_EXR_MULTILAYER'):
-            print('Multilayer EXR will not support tiles. Turning tiles off')
+            print('Multilayer EXR does not support tiles. Turning tiles off')
             self.report({'WARNING'}, 'Turning tiles off for Multilayer EXR')
             bpy.context.scene.ray_pump_use_tiles = False
+            
+        if (bpy.context.scene.raypump_jobtype == 'FREE'):
+            print('Free jobs do not use tiles. Turning tiles off')
+            self.report({'WARNING'}, 'Turning tiles off for Free job')
+            bpy.context.scene.ray_pump_use_tiles = False
 
+        if (bpy.context.scene.camera.data.type == 'PANO'):
+            print('Panoramic camera does not support tiles. Turning tiles off')
+            self.report({'WARNING'}, 'Turning tiles off for Panoramic camera')
+            bpy.context.scene.ray_pump_use_tiles = False
+            
         try:
             bpy.ops.wm.save_mainfile()    # save actual state to main .blend - this is temporary @TODO NOT OPTIMAL
         except RuntimeError as msg:

@@ -211,6 +211,7 @@ class MessageRenderOperator(bpy.types.Operator):
                 'VERSION_CYCLE': bpy.app.version_cycle,
                 'SCHEDULE': destination_fpath,
                 'RESOLUTION': context.scene.render.resolution_x * context.scene.render.resolution_y * (context.scene.render.resolution_percentage / 100),
+                'SAMPLE_COUNT': context.scene.cycles.samples,
                 'USE_TILES': bpy.context.scene.ray_pump_use_tiles
                 })
             SOCKET.sendall(bytes(the_dump, 'UTF-8'))

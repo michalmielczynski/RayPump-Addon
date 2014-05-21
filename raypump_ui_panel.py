@@ -152,7 +152,11 @@ class MessageRenderOperator(bpy.types.Operator):
         # ---------------------------------------------------------------
 
         #getting all the linked files
-        bpy.ops.object.make_local(type='ALL')
+        try:
+            bpy.ops.object.make_local(type='ALL')
+        except RuntimeError as msg:
+            print(msg)
+
 
         #required to work with external paths
         bpy.ops.file.make_paths_absolute()

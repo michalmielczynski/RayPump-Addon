@@ -128,7 +128,7 @@ class MessageRenderOperator(bpy.types.Operator):
             self.report({'WARNING'}, 'Turning tiles off for Multilayer EXR')
             bpy.context.scene.ray_pump_use_tiles = False
             
-        if (bpy.context.scene.raypump_jobtype == 'FREE'):
+        if (bpy.context.scene.raypump_jobtype == 'FREE') and (bpy.context.scene.ray_pump_use_tiles is True):
             print('Free jobs do not use tiles. Turning tiles off')
             self.report({'WARNING'}, 'Turning tiles off for Free job')
             bpy.context.scene.ray_pump_use_tiles = False

@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com, tiago.shibata@gmail.com',
-    'version': '(1, 1, 5, 0)',
+    'version': '(1, 1, 6, 0)',
     'blender': (2, 7, 0),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Free, easy, efficient GPU renderfarm for Cycles',
@@ -20,7 +20,7 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
 SOCKET = None
 RAYPUMP_PATH = None
-RAYPUMP_VERSION = 1.150    # what version we will connect to?
+RAYPUMP_VERSION = 1.160    # what version we will connect to?
 
 
 class MessageViewOperator(bpy.types.Operator):
@@ -109,7 +109,6 @@ class MessageRenderOperator(bpy.types.Operator):
                     fixApplied = True
 
         if fixApplied:
-            self.report({'INFO'}, 'Invalid entries removed')
             print("Invalid entries removed")
 
         return fixApplied
@@ -162,7 +161,6 @@ class MessageRenderOperator(bpy.types.Operator):
         bpy.ops.file.make_paths_absolute()
 
         #getting all the fluid cache paths
-        bpy.ops.file.make_paths_absolute()
         for object in bpy.data.objects:
             for modifier in object.modifiers:
                 if (modifier.name == "Fluidsim"):
@@ -177,6 +175,10 @@ class MessageRenderOperator(bpy.types.Operator):
                 external_paths.append(nameSplit[0])
                 image.filepath = "//" + nameSplit[1]
                 image.filepath_raw = image.filepath
+                
+        #getting the baked cache files
+        cache_path = '' + os.path.dirname(bpy.data.filepath) +'/blendcache_' + os.path.basename(bpy.data.filepath).replace(".blend","")
+        external_paths.append(cache_path)
 
         ## OTHER EXTERNAL PATHS CAN BE ADDED HERE
 

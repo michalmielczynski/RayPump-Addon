@@ -1,7 +1,7 @@
 bl_info = {
     'name': 'RayPump Online Accelerator',
     'author': 'michal.mielczynski@gmail.com, tiago.shibata@gmail.com',
-    'version': '(1, 1, 6, 0)',
+    'version': '(1, 1, 7, 0)',
     'blender': (2, 7, 0),
     'location': 'Properties > Render > RayPump.com',
     'description': 'Free, easy, efficient GPU renderfarm for Cycles',
@@ -20,7 +20,7 @@ TCP_IP = '127.0.0.1'
 TCP_PORT = 5005
 SOCKET = None
 RAYPUMP_PATH = None
-RAYPUMP_VERSION = 1.160    # what version we will connect to?
+RAYPUMP_VERSION = 1.170    # what version we will connect to?
 
 
 class MessageViewOperator(bpy.types.Operator):

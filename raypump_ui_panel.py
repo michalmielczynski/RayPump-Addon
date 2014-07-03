@@ -122,20 +122,25 @@ class MessageRenderOperator(bpy.types.Operator):
             print('Aborting due to connecting error')
             return {'CANCELLED'}
 
-        if (bpy.context.scene.render.image_settings.file_format == 'OPEN_EXR_MULTILAYER'):
-            print('Multilayer EXR does not support tiles. Turning tiles off')
-            self.report({'WARNING'}, 'Turning tiles off for Multilayer EXR')
-            bpy.context.scene.ray_pump_use_tiles = False
-            
-        if (bpy.context.scene.raypump_jobtype == 'FREE') and (bpy.context.scene.ray_pump_use_tiles is True):
-            print('Free jobs do not use tiles. Turning tiles off')
-            self.report({'WARNING'}, 'Turning tiles off for Free job')
-            bpy.context.scene.ray_pump_use_tiles = False
+        if (bpy.context.scene.raypump_use_tiles):
+            if (bpy.context.scene.render.image_settings.file_format == 'OPEN_EXR_MULTILAYER'):
+                print('Multilayer EXR does not support tiles. Turning tiles off')
+                self.report({'WARNING'}, 'Turning tiles off for Multilayer EXR')
+                bpy.context.scene.raypump_use_tiles = False
+                
+            if (bpy.context.scene.raypump_jobtype == 'FREE') and (bpy.context.scene.raypump_use_tiles is True):
+                print('Free jobs do not use tiles. Turning tiles off')
+                self.report({'WARNING'}, 'Turning tiles off for Free job')
+                bpy.context.scene.raypump_use_tiles = False
 
-        if (bpy.context.scene.camera.data.type == 'PANO'):
-            print('Panoramic camera does not support tiles. Turning tiles off')
-            self.report({'WARNING'}, 'Turning tiles off for Panoramic camera')
-            bpy.context.scene.ray_pump_use_tiles = False
+            if (bpy.context.scene.camera.data.type == 'PANO'):
+                print('Panoramic camera does not support tiles. Turning tiles off')
+                self.report({'WARNING'}, 'Turning tiles off for Panoramic camera')
+                bpy.context.scene.raypump_use_tiles = False
+                
+        if (bpy.context.scene.raypump_jobtype == 'FREE'):
+            bpy.context.scene.raypump_use_tiles = False
+            bpy.context.scene.raypump_acceleration = 'GPU'
             
         try:
             bpy.ops.wm.save_mainfile()    # save actual state to main .blend - this is temporary @TODO NOT OPTIMAL
@@ -218,7 +223,8 @@ class MessageRenderOperator(bpy.types.Operator):
                 'SCHEDULE': destination_fpath,
                 'RESOLUTION': context.scene.render.resolution_x * context.scene.render.resolution_y * (context.scene.render.resolution_percentage / 100),
                 'SAMPLE_COUNT': context.scene.cycles.samples,
-                'USE_TILES': bpy.context.scene.ray_pump_use_tiles
+                'USE_TILES': bpy.context.scene.raypump_use_tiles,
+                'USE_GPU': (bpy.context.scene.raypump_acceleration == 'GPU')
                 })
             SOCKET.sendall(bytes(the_dump, 'UTF-8'))
 
@@ -237,29 +243,37 @@ class MessageRenderOperator(bpy.types.Operator):
 
 def init_properties():
     bpy.types.Scene.raypump_jobtype = EnumProperty(
-        items=[('FREE', 'Free', 'Suitable for less demanding jobs (limited daily)'),
-                ('STATIC', 'Static', 'Renders current frame using Render Points'),
-                ('ANIMATION', 'Animation', 'Renders animation using Render Points')
+        items=[('FREE', 'Free', 'Renders frame 001 using Free Render Points'),
+                ('STATIC', 'Static', 'Renders current frame using Pro Render Points'),
+                ('ANIMATION', 'Animation', 'Renders animation using Pro Render Points')
                 ],
         default='FREE',
         name="Job Type")
+        
+    bpy.types.Scene.raypump_acceleration = EnumProperty(
+        items=[('GPU', 'GPU', 'Use online GPUs - HIGLY recommended'),
+                ('CPU', 'CPU', 'select CPU only if your scene fails on GPU')
+                ],
+        default='GPU',
+        name="Online devices")
+                    
 
     # todo: either addon, either blender setting (currently not used, anyway)
-    bpy.types.Scene.ray_pump_path = StringProperty(
+    bpy.types.Scene.raypump_path = StringProperty(
         name="RayPump (exe)",
         subtype="FILE_PATH",
         description="Path to RayPump executable")
 
-    bpy.types.Scene.ray_pump_use_tiles = BoolProperty(
+    bpy.types.Scene.raypump_use_tiles = BoolProperty(
         name="Use tiles",
-        description="Split bigger jobs. Does not support Multilayer-EXR!",
+        description="(TEST VERSION) Distributes big resolution images to many servers. Does not support Multilayer-EXR!",
         default=False)
 
 
 class RayPumpPanel(bpy.types.Panel):
     init_properties()
     """Creates a Panel in the scene context of the properties editor"""
-    bl_label = "RayPump II Online Cycles Accelerator"
+    bl_label = "RayPump II Online Cycles Accelerator v1.16"
     bl_idname = "SCENE_PT_layout"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -271,23 +285,28 @@ class RayPumpPanel(bpy.types.Panel):
 
         # section: set
         row = layout.row()
+        #row.prop(scene, "raypump_jobtype", text="Job Type")
         split = row.split(percentage=0.7)
         col = split.column()
         col.prop(scene, "raypump_jobtype", text="Job Type")
         col = split.column()
-        col.prop(scene, "ray_pump_use_tiles")
+        col.prop(scene, "raypump_use_tiles")
+        row = layout.row()
+        row.prop(scene, "raypump_acceleration", text="Acceleration")
+
 
         # section: go
         row = layout.row()
         row.scale_y = 1.6
-        row.operator("object.raypump_message_operator", icon='RENDER_STILL')
+        row.operator("object.raypump_message_operator", icon='EXPORT')
 
         row = layout.row()
-        split = row.split()
-        col = split.column()
-        col.operator("object.raypump_view_operator")
-        col = split.column()
-        col.operator('wm.url_open', text='Help', icon='URL').url = "http://www.raypump.com/help/4-first-time-step-by-step-instruction"
+        #temporary off
+        #split = row.split()
+        #col = split.column()
+        #col.operator("object.raypump_view_operator")
+        #col = split.column()
+        row.operator('wm.url_open', text='Help', icon='URL').url = "http://www.raypump.com/help/4-first-time-step-by-step-instruction"
 
 
 def register():
@@ -303,3 +322,5 @@ def unregister():
 
 if __name__ == "__main__":
     register()
+
+
